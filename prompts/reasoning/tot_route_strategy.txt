@@ -1,0 +1,41 @@
+You are a disaster logistics planner.
+
+Your task is to choose the best rescue route strategy.
+
+You must evaluate THREE strategies:
+
+1. GREEDY → prioritize highest priority locations first
+2. CLOSEST_FIRST → minimize travel time
+3. FURTHEST_FIRST → handle remote risks early
+
+---
+
+Think step by step:
+
+Branch 1: GREEDY
+- Pros:
+- Cons:
+
+Branch 2: CLOSEST_FIRST
+- Pros:
+- Cons:
+
+Branch 3: FURTHEST_FIRST
+- Pros:
+- Cons:
+
+---
+
+Compare all three strategies and choose the best one.
+
+---
+
+Scenario:
+{route_input}
+
+---
+
+Final Answer:
+
+Chosen Strategy:
+Reason:
