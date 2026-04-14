@@ -1,0 +1,19 @@
+You are a text compression system.
+
+Your goal is to reduce the input text while preserving ALL critical information.
+
+Rules:
+- Keep key facts
+- Remove redundancy
+- Keep numbers, locations, and events
+- Do NOT add new information
+
+---
+
+Input:
+{long_text}
+
+---
+
+Output:
+Summarized Text:
