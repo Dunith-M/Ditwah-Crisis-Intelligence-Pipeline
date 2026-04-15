@@ -1,8 +1,15 @@
+from __future__ import annotations
+
 import time
 import logging
 import os
+from typing import Dict, Any
+
 import google.generativeai as genai
 from dotenv import load_dotenv
+
+from infrastructure.io.file_manager import FileManager
+from infrastructure.logging.logger import LoggerFactory
 
 
 load_dotenv()
@@ -15,8 +22,17 @@ DEFAULT_MODELS = (
 
 
 class LLMGateway:
+    """
+    Industrial LLM Gateway with:
+    - retry + fallback models
+    - raw response storage
+    - structured logging
+    - execution metadata
+    """
+
     def __init__(self, config: dict | None = None):
         config = config or {}
+
         api_key = (
             config.get("api_key")
             or os.getenv("GOOGLE_API_KEY")
@@ -37,6 +53,7 @@ class LLMGateway:
         self.retry_attempts = config.get("retries", 3)
         self.timeout = config.get("timeout", 10)
 
+        # fallback model strategy
         fallback_models = [self.model_name]
         for model_name in DEFAULT_MODELS:
             if model_name not in fallback_models:
@@ -44,9 +61,37 @@ class LLMGateway:
 
         self.model_names = fallback_models
         self.model = genai.GenerativeModel(self.model_name)
+
+        # 🔹 OLD LOGGER (kept for compatibility)
         self.logger = logging.getLogger("llm_calls")
 
-    def generate(self, prompt: str) -> str:
+        # 🔹 NEW INDUSTRIAL COMPONENTS
+        self.file_manager = FileManager()
+        logger_factory = LoggerFactory()
+
+        self.app_logger = logger_factory.get_app_logger()
+        self.llm_logger = logger_factory.get_llm_logger()
+        self.warning_logger = logger_factory.get_warning_logger()
+        self.logger_factory = logger_factory
+
+    # =========================================================
+    # 🔹 CORE GENERATE FUNCTION (UPGRADED)
+    # =========================================================
+
+    def generate(
+        self,
+        prompt: str,
+        module_name: str,
+        input_file: str,
+        output_file: str,
+    ) -> Dict[str, Any]:
+
+        started_at = self.file_manager.timestamp()
+        stamp = self.file_manager.timestamp_slug()
+
+        raw_output_dir = "outputs/artifacts/raw_llm_outputs"
+        raw_output_file = f"{raw_output_dir}/{module_name}_{stamp}.txt"
+
         for model_name in self.model_names:
             self.model = genai.GenerativeModel(model_name)
 
@@ -63,28 +108,67 @@ class LLMGateway:
                     text = response.text
                     self.model_name = model_name
 
-                    self.logger.info(
-                        f"LLM SUCCESS | Model: {model_name} | Prompt length: {len(prompt)}"
+                    # 🔹 STORE RAW OUTPUT
+                    self.file_manager.write_text(raw_output_file, text)
+
+                    finished_at = self.file_manager.timestamp()
+
+                    # 🔹 STRUCTURED LOG (LLM AUDIT)
+                    log_payload = {
+                        "event": "llm_call",
+                        "module_name": module_name,
+                        "timestamp": finished_at,
+                        "model_used": model_name,
+                        "temperature_used": self.temperature,
+                        "input_file_name": input_file,
+                        "output_file_name": output_file,
+                        "raw_response_file": raw_output_file,
+                        "prompt_length": len(prompt),
+                    }
+
+                    self.logger_factory.log_llm_call(self.llm_logger, log_payload)
+
+                    # 🔹 APP LOG
+                    self.app_logger.info(
+                        f"LLM SUCCESS | module={module_name} | model={model_name} | input={input_file}"
                     )
 
-                    return text
+                    return {
+                        "raw_response": text,
+                        "raw_response_file": raw_output_file,
+                        "started_at": started_at,
+                        "finished_at": finished_at,
+                        "model_used": model_name,
+                        "temperature_used": self.temperature,
+                        "input_file_name": input_file,
+                        "output_file_name": output_file,
+                    }
 
                 except Exception as e:
                     error_text = str(e)
-                    self.logger.warning(
-                        f"LLM FAIL | Model: {model_name} | Attempt {attempt+1}: {error_text}"
+
+                    # 🔹 WARNING LOG
+                    self.warning_logger.warning(
+                        f"LLM FAIL | module={module_name} | model={model_name} | attempt={attempt+1} | error={error_text}"
                     )
 
                     unsupported_model = (
                         "not found" in error_text.lower()
                         or "not supported for generatecontent" in error_text.lower()
                     )
+
                     if unsupported_model:
                         break
 
                     time.sleep(2)
 
+        # 🔴 FINAL FAILURE
+        self.app_logger.error(
+            f"LLM completely failed | module={module_name} | input={input_file}"
+        )
+
         raise RuntimeError("LLM failed after retries")
 
 
+# backward compatibility
 ModelGateway = LLMGateway
