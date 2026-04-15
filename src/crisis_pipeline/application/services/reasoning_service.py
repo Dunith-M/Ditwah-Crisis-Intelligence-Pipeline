@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Dict
+from typing import Any, List, Dict
 
 from crisis_pipeline.infrastructure.llm.model_gateway import LLMGateway
 from crisis_pipeline.infrastructure.llm.prompt_loader import PromptLoader
@@ -37,7 +37,7 @@ class ReasoningService:
     # 🔹 LEGACY METHODS (KEPT)
     # =========================================================
 
-    def score_incident(self, incident: str) -> str:
+    def score_incident(self, incident: str) -> Dict[str, Any]:
         prompt = self.prompt_loader.load("reasoning/cot_incident_scoring.txt")
 
         final_prompt = (
@@ -46,14 +46,38 @@ class ReasoningService:
             .replace("{incident_input}", incident)
         )
 
-        audit = self.model_gateway.generate(
+        incident_score_schema = {
+            "type": "object",
+            "properties": {
+                "people_impact": {"type": "integer"},
+                "severity": {"type": "integer"},
+                "urgency": {"type": "integer"},
+                "accessibility": {"type": "integer"},
+                "total_score": {"type": "integer"},
+                "reason": {"type": "string"},
+            },
+            "required": [
+                "people_impact",
+                "severity",
+                "urgency",
+                "accessibility",
+                "total_score",
+                "reason",
+            ],
+        }
+
+        scoring_gateway = LLMGateway({"temperature": 0.1, "max_tokens": 1024})
+
+        audit = scoring_gateway.generate(
             prompt=final_prompt,
             module_name="incident_scoring",
             input_file="single_input",
             output_file="single_output",
+            response_mime_type="application/json",
+            response_schema=incident_score_schema,
         )
 
-        return audit["raw_response"]
+        return audit
 
     def run_stability_prompt(self, scenario: str, temperature: float = 0.0) -> str:
         prompt = self.prompt_loader.load("reasoning/cot_incident_scoring.txt")

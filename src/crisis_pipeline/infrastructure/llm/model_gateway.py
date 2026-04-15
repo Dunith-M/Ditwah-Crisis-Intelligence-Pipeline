@@ -5,8 +5,9 @@ import logging
 import os
 from typing import Dict, Any
 
-import google.generativeai as genai
 from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 
 from crisis_pipeline.infrastructure.io.file_manager import FileManager
 from crisis_pipeline.infrastructure.logging.logger import LoggerFactory
@@ -17,7 +18,6 @@ load_dotenv()
 DEFAULT_MODELS = (
     "gemini-2.5-flash",
     "gemini-2.0-flash",
-    "gemini-1.5-flash",
 )
 
 
@@ -44,7 +44,7 @@ class LLMGateway:
                 "Missing Gemini API key. Set GOOGLE_API_KEY or GEMINI_API_KEY in your environment or .env file."
             )
 
-        genai.configure(api_key=api_key)
+        self.client = genai.Client(api_key=api_key)
 
         configured_model = config.get("model") or os.getenv("GEMINI_MODEL")
         self.model_name = configured_model or DEFAULT_MODELS[0]
@@ -60,7 +60,6 @@ class LLMGateway:
                 fallback_models.append(model_name)
 
         self.model_names = fallback_models
-        self.model = genai.GenerativeModel(self.model_name)
 
         # 🔹 OLD LOGGER (kept for compatibility)
         self.logger = logging.getLogger("llm_calls")
@@ -84,6 +83,8 @@ class LLMGateway:
         module_name: str,
         input_file: str,
         output_file: str,
+        response_mime_type: str | None = None,
+        response_schema: dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
 
         started_at = self.file_manager.timestamp()
@@ -92,17 +93,20 @@ class LLMGateway:
         raw_output_dir = "outputs/artifacts/raw_llm_outputs"
         raw_output_file = f"{raw_output_dir}/{module_name}_{stamp}.txt"
 
-        for model_name in self.model_names:
-            self.model = genai.GenerativeModel(model_name)
+        last_error = "unknown error"
 
+        for model_name in self.model_names:
             for attempt in range(self.retry_attempts):
                 try:
-                    response = self.model.generate_content(
-                        prompt,
-                        generation_config={
-                            "temperature": self.temperature,
-                            "max_output_tokens": self.max_tokens,
-                        }
+                    response = self.client.models.generate_content(
+                        model=model_name,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            temperature=self.temperature,
+                            max_output_tokens=self.max_tokens,
+                            response_mime_type=response_mime_type,
+                            response_schema=response_schema,
+                        ),
                     )
 
                     text = response.text
@@ -146,6 +150,7 @@ class LLMGateway:
 
                 except Exception as e:
                     error_text = str(e)
+                    last_error = error_text
 
                     # 🔹 WARNING LOG
                     self.warning_logger.warning(
@@ -167,7 +172,7 @@ class LLMGateway:
             f"LLM completely failed | module={module_name} | input={input_file}"
         )
 
-        raise RuntimeError("LLM failed after retries")
+        raise RuntimeError(f"LLM failed after retries: {last_error}")
 
 
 # backward compatibility

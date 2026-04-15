@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 import json
 import re
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 import yaml
 
 from crisis_pipeline.infrastructure.logging.logger import LoggerFactory
@@ -57,7 +57,7 @@ class ResponseParser:
         input_file: Optional[str] = None,
         output_file: Optional[str] = None,
         raw_response_file: Optional[str] = None,
-    ) -> Dict:
+    ) -> Dict[str, str | None]:
         """
         Expected format:
         district: X
@@ -65,7 +65,7 @@ class ResponseParser:
         priority: Z
         """
 
-        result = {
+        result: Dict[str, str | None] = {
             "district": None,
             "intent": None,
             "priority": None
@@ -102,7 +102,7 @@ class ResponseParser:
         input_file: Optional[str] = None,
         output_file: Optional[str] = None,
         raw_response_file: Optional[str] = None,
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         try:
             return json.loads(text)
 
@@ -166,7 +166,7 @@ class ResponseParser:
     # 🔹 FALLBACK PARSERS
     # =========================================================
 
-    def _parse_python_dict(self, text: str) -> Dict:
+    def _parse_python_dict(self, text: str) -> Dict[str, Any]:
         try:
             parsed = ast.literal_eval(text)
         except (ValueError, SyntaxError):
@@ -174,7 +174,7 @@ class ResponseParser:
 
         return parsed if isinstance(parsed, dict) else {}
 
-    def _parse_yaml_object(self, text: str) -> Dict:
+    def _parse_yaml_object(self, text: str) -> Dict[str, Any]:
         try:
             parsed = yaml.safe_load(text)
         except yaml.YAMLError:
@@ -186,7 +186,7 @@ class ResponseParser:
     # 🔹 INCIDENT SCORECARD PARSER
     # =========================================================
 
-    def _parse_incident_scorecard(self, text: str) -> Dict:
+    def _parse_incident_scorecard(self, text: str) -> Dict[str, Any]:
         field_map = {
             "people impact": "people_impact",
             "severity": "severity",
@@ -228,5 +228,5 @@ class ResponseParser:
 # 🔹 FUNCTIONAL SHORTCUT
 # =========================================================
 
-def parse_classification(text: str) -> Dict:
+def parse_classification(text: str) -> Dict[str, str | None]:
     return ResponseParser().parse_message_classification(text)

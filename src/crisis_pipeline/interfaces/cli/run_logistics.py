@@ -12,7 +12,11 @@ from crisis_pipeline.infrastructure.io.json_writer import JsonWriter
 def main():
 
     loader = TextLoader()
-    incidents = loader.load_lines("data/raw/incidents.txt")
+    incidents = [
+        line
+        for line in loader.load_lines("data/raw/incidents.txt")
+        if not line.lower().startswith("id | time")
+    ]
 
     scorer = ScoreIncidentsUseCase()
     scored = scorer.execute(incidents)

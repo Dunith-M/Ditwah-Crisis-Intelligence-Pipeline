@@ -1,3 +1,4 @@
 {
-  "people_impact": 0,
-  "severity": 0,
+  "people_impact": 10,
+  "severity": 90,
+  "urgency": 9

@@ -10,7 +10,7 @@ from typing import Optional
 #  SIMPLE LOGGER (Backward Compatibility)
 # =========================================================
 
-def get_logger(name: str) -> logging.Logger:
+def get_logger(name: str = "crisis_pipeline.app") -> logging.Logger:
     """
     Simple logger getter (used in legacy code).
     Now enhanced to ensure logs go to app.log.
