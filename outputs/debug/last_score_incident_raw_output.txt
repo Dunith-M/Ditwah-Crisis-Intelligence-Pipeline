@@ -1,0 +1,3 @@
+{
+  "people_impact": 0,
+  "severity": 0,

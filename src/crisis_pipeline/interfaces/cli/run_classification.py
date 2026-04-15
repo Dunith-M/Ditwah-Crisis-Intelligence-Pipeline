@@ -1,3 +1,8 @@
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
 from crisis_pipeline.application.use_cases.classify_messages import run_classification
 from crisis_pipeline.infrastructure.io.excel_writer import save_excel
 
