@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional, List
 from datetime import datetime
+
+from pydantic import BaseModel, Field
+
 from .enums import Intent, Priority, Status
 
 
@@ -45,7 +48,7 @@ class ScenarioRecord:
 
 
 # ---------------------------
-# 4. Crisis Event (from news extraction)
+# 4. Crisis Event (Internal Domain Model)
 # ---------------------------
 @dataclass
 class CrisisEvent:
@@ -55,3 +58,14 @@ class CrisisEvent:
     severity: Status
     description: str
     detected_at: datetime
+
+
+# ---------------------------
+# 5. Crisis Event Extract (LLM Output Schema)
+# ---------------------------
+class CrisisEventExtract(BaseModel):
+    district: str
+    flood_level_meters: float = Field(ge=0)
+    victim_count: int = Field(ge=0)
+    main_need: str
+    status: str
