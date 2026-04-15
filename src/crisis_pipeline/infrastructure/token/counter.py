@@ -1,9 +1,16 @@
+from typing import List
+
+
 class TokenCounter:
-    def __init__(self, avg_chars_per_token: int = 4):
-        self.avg_chars_per_token = avg_chars_per_token
+    """
+    Simple token estimator.
+    Rule: 1 token ≈ 4 characters (rough approximation)
+    """
 
-    def estimate_tokens(self, text: str) -> int:
-        return len(text) // self.avg_chars_per_token
+    def count(self, text: str) -> int:
+        if not text:
+            return 0
+        return max(1, len(text) // 4)
 
-    def is_exceeding(self, text: str, limit: int) -> bool:
-        return self.estimate_tokens(text) > limit
+    def batch_count(self, texts: List[str]) -> List[int]:
+        return [self.count(t) for t in texts]
