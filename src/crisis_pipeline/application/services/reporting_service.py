@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
 
-from infrastructure.io.file_manager import FileManager
+from crisis_pipeline.infrastructure.io.file_manager import FileManager
 
 
 # =========================================================

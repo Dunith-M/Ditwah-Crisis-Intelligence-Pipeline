@@ -1,0 +1,11 @@
+version: 1
+
+log_paths:
+  app_log: outputs/logs/app.log
+  warnings_log: outputs/logs/warnings.log
+  llm_calls_log: outputs/logs/llm_calls.log
+
+levels:
+  app: INFO
+  warnings: WARNING
+  llm_calls: INFO

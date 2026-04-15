@@ -1,5 +1,5 @@
 from typing import List
-from application.services.token_service import TokenService
+from crisis_pipeline.application.services.token_service import TokenService
 
 
 class EnforceTokenBudgetUseCase:

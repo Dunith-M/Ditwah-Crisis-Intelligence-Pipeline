@@ -8,8 +8,8 @@ from typing import Dict, Any
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-from infrastructure.io.file_manager import FileManager
-from infrastructure.logging.logger import LoggerFactory
+from crisis_pipeline.infrastructure.io.file_manager import FileManager
+from crisis_pipeline.infrastructure.logging.logger import LoggerFactory
 
 
 load_dotenv()

@@ -1,16 +1,35 @@
 from __future__ import annotations
 
 from typing import List, Dict
-from application.services.reporting_service import ReportingService
-from infrastructure.parsing.response_parser import ResponseParser
+
+from crisis_pipeline.application.services.reporting_service import ReportingService
+from crisis_pipeline.infrastructure.parsing.response_parser import ResponseParser
+from crisis_pipeline.infrastructure.logging.logger import LoggerFactory
 
 
 class ExtractionService:
+    """
+    Industrial Extraction Service
+
+    Features:
+    - LLM-based JSON extraction
+    - raw response storage
+    - parse validation
+    - failure tracking
+    - reporting
+    - logging (NEW)
+    """
+
     def __init__(self, model_gateway, prompt_loader):
         self.model_gateway = model_gateway
         self.prompt_loader = prompt_loader
         self.parser = ResponseParser()
         self.reporting_service = ReportingService()
+
+        # 🔹 NEW: logging
+        logger_factory = LoggerFactory()
+        self.app_logger = logger_factory.get_app_logger()
+        self.warning_logger = logger_factory.get_warning_logger()
 
     def extract_news_events(
         self,
@@ -20,6 +39,7 @@ class ExtractionService:
         report_file: str = "outputs/reports/extraction_validation_report.md",
         prompt_path: str = "prompts/extraction/json_extract.txt",
     ) -> List[Dict]:
+
         prompt_template = self.prompt_loader.load(prompt_path)
 
         results = []
@@ -31,7 +51,7 @@ class ExtractionService:
         first_started_at = None
         last_finished_at = None
 
-        for news in news_items:
+        for idx, news in enumerate(news_items):
             prompt = f"{prompt_template}\n\nNews:\n{news}"
 
             audit = self.model_gateway.generate(
@@ -43,8 +63,8 @@ class ExtractionService:
 
             if first_started_at is None:
                 first_started_at = audit["started_at"]
-            last_finished_at = audit["finished_at"]
 
+            last_finished_at = audit["finished_at"]
             raw_files.append(audit["raw_response_file"])
 
             try:
@@ -54,11 +74,22 @@ class ExtractionService:
                     output_file=output_file,
                     raw_response_file=audit["raw_response_file"],
                 )
+
                 results.append(parsed)
                 success_count += 1
-            except Exception:
+
+                self.app_logger.info(
+                    f"Extraction success | index={idx} | input={input_file}"
+                )
+
+            except Exception as e:
                 failed_count += 1
                 warning_count += 1
+
+                self.warning_logger.warning(
+                    f"Extraction failed | index={idx} | input={input_file} | raw_file={audit['raw_response_file']} | error={str(e)}"
+                )
+
                 results.append(
                     {
                         "event": None,
@@ -67,6 +98,7 @@ class ExtractionService:
                     }
                 )
 
+        # 🔹 REPORT
         self.reporting_service.create_module_report(
             report_file=report_file,
             module_title="Extraction Validation Report",
@@ -83,9 +115,14 @@ class ExtractionService:
             summary_lines=[
                 "JSON extraction completed.",
                 "Invalid JSON outputs were logged to warnings.log.",
-                "Raw extraction outputs were stored for later audit.",
+                "Raw extraction outputs stored for auditability.",
+                "Each failure traceable via raw response file.",
             ],
             raw_response_files=raw_files,
+        )
+
+        self.app_logger.info(
+            f"Extraction completed | total={len(news_items)} | success={success_count} | failed={failed_count}"
         )
 
         return results

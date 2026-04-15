@@ -6,7 +6,7 @@ import re
 from typing import Dict, Optional
 import yaml
 
-from infrastructure.logging.logger import LoggerFactory
+from crisis_pipeline.infrastructure.logging.logger import LoggerFactory
 
 
 class ResponseParser:
